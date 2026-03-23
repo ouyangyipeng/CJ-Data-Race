@@ -140,8 +140,10 @@ for race in races:
 
 ## 文档
 
-- [设计文档](docs/设计文档.md)
-- [进度记录](PROGRESS.md)
+- [新手指引](docs/新手指引.md) - 面向新成员的项目介绍
+- [设计文档](docs/设计文档.md) - 详细的技术设计文档
+- [进度记录](PROGRESS.md) - 项目开发进度
+- [优化计划](plans/optimization_plan.md) - 后续优化方向
 
 ## 许可证
 
