@@ -213,23 +213,30 @@ class DirectRaceDetector:
 
 
 def format_output(races: List[RaceCondition]) -> str:
-    """格式化输出结果"""
+    """格式化输出结果
+    
+    根据赛题要求，输出格式为：
+    (RaceType，((filePath1,fileName1,spawnLine1),(filePath1',fileName1',raceLine1')),((filePath2,fileName2,spawnLine2),(filePath2',fileName2',raceLine2')))
+    注意：RaceType后面使用中文逗号"，"
+    """
     if not races:
         return ""
     
     lines = []
     for race in races:
         if race.is_public_interface:
+            # 公共接口竞争格式
             line = (
-                f"({race.race_type},"
+                f"({race.race_type}，"
                 f"(({race.thread1_spawn_loc.file_path},{race.thread1_spawn_loc.file_name},{race.declare_line1}),"
                 f"({race.thread1_race_loc.file_path},{race.thread1_race_loc.file_name},{race.thread1_race_loc.line})),"
                 f"(({race.thread2_spawn_loc.file_path},{race.thread2_spawn_loc.file_name},{race.declare_line2}),"
                 f"({race.thread2_race_loc.file_path},{race.thread2_race_loc.file_name},{race.thread2_race_loc.line})))"
             )
         else:
+            # 线程间竞争格式
             line = (
-                f"({race.race_type},"
+                f"({race.race_type}，"
                 f"(({race.thread1_spawn_loc.file_path},{race.thread1_spawn_loc.file_name},{race.thread1_spawn_loc.line}),"
                 f"({race.thread1_race_loc.file_path},{race.thread1_race_loc.file_name},{race.thread1_race_loc.line})),"
                 f"(({race.thread2_spawn_loc.file_path},{race.thread2_spawn_loc.file_name},{race.thread2_spawn_loc.line}),"

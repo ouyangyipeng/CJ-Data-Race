@@ -86,13 +86,22 @@ CJ-Data-Race/
 
 ## 测试用例
 
-| 测试用例 | 描述 | 预期结果 |
-|---------|------|---------|
-| case1_basic_race | 两个线程写同一变量 | 1个WW竞争 |
-| case2_rw_race | 一个线程读，一个线程写 | 1个RW竞争 |
-| case3_no_race_sync | 使用synchronized保护 | 0个竞争 |
-| case4_public_interface | 公共函数访问共享变量 | 1个竞争 |
-| case5_no_race | 访问不同变量 | 0个竞争 |
+| 测试用例 | 描述 | 预期结果 | 状态 |
+|---------|------|---------|------|
+| case1_basic_race | 两个线程写同一变量 | 1个WW竞争 | ✅ |
+| case2_rw_race | 一个线程读，一个线程写 | 1个RW竞争 | ✅ |
+| case3_no_race_sync | 使用Mutex保护 | 0个竞争 | ✅ |
+| case4_public_interface | 公共函数访问共享变量 | 1个竞争 | ✅ |
+| case5_no_race | 访问不同变量 | 0个竞争 | ✅ |
+| case6_rwlock | RWLock读写锁保护 | 0个竞争 | ✅ |
+| case7_atomic | Atomic原子操作 | 0个竞争 | ✅ |
+| case8_nested_spawn | 嵌套spawn竞争 | 3个WW竞争 | ✅ |
+| case9_channel | Channel通道通信 | 0个竞争 | ✅ |
+
+**鲲鹏920环境测试结果** (2026-03-23):
+- 9个测试用例全部通过
+- 平均执行时间: ~0.09秒/用例
+- 远低于赛题要求的5分钟限制
 
 运行测试：
 

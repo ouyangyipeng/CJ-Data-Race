@@ -173,8 +173,20 @@ class CangjieParser:
     def _analyze_spawns(self, lines: List[str]):
         """分析spawn创建的线程"""
         spawn_pattern = re.compile(r'spawn\s*{')
+        # Mutex锁操作
         lock_pattern = re.compile(r'(\w+)\.lock\(\)')
         unlock_pattern = re.compile(r'(\w+)\.unlock\(\)')
+        # RWLock读写锁操作
+        read_lock_pattern = re.compile(r'(\w+)\.readLock\(\)')
+        read_unlock_pattern = re.compile(r'(\w+)\.readUnlock\(\)')
+        write_lock_pattern = re.compile(r'(\w+)\.writeLock\(\)')
+        write_unlock_pattern = re.compile(r'(\w+)\.writeUnlock\(\)')
+        # SpinLock操作
+        spin_lock_pattern = re.compile(r'(\w+)\.spinLock\(\)')
+        spin_unlock_pattern = re.compile(r'(\w+)\.spinUnlock\(\)')
+        # synchronized块
+        synchronized_pattern = re.compile(r'synchronized\s*\((\w+)\)')
+        
         write_pattern = re.compile(r'(\w+)\s*=\s*[^=]')  # 赋值，不是比较
         read_pattern = re.compile(r'(?<![=<>!])\b(\w+)\b(?!\s*[=(:])')  # 变量使用
         local_var_pattern = re.compile(r'(let|var)\s+(\w+)\s*:')  # 局部变量声明
@@ -223,7 +235,7 @@ class CangjieParser:
                     var_name = local_match.group(2)
                     thread_local_vars.add(var_name)
                 
-                # 检测锁操作
+                # 检测Mutex锁操作
                 lock_match = lock_pattern.search(stripped)
                 if lock_match:
                     lock_var = lock_match.group(1)
@@ -235,6 +247,52 @@ class CangjieParser:
                 if unlock_match:
                     current_thread.in_lock = False
                     current_thread.current_lock = None
+                
+                # 检测RWLock读写锁操作
+                read_lock_match = read_lock_pattern.search(stripped)
+                if read_lock_match:
+                    lock_var = read_lock_match.group(1)
+                    current_thread.sync_objects.add(lock_var)
+                    current_thread.in_lock = True
+                    current_thread.current_lock = lock_var
+                
+                read_unlock_match = read_unlock_pattern.search(stripped)
+                if read_unlock_match:
+                    current_thread.in_lock = False
+                    current_thread.current_lock = None
+                
+                write_lock_match = write_lock_pattern.search(stripped)
+                if write_lock_match:
+                    lock_var = write_lock_match.group(1)
+                    current_thread.sync_objects.add(lock_var)
+                    current_thread.in_lock = True
+                    current_thread.current_lock = lock_var
+                
+                write_unlock_match = write_unlock_pattern.search(stripped)
+                if write_unlock_match:
+                    current_thread.in_lock = False
+                    current_thread.current_lock = None
+                
+                # 检测SpinLock操作
+                spin_lock_match = spin_lock_pattern.search(stripped)
+                if spin_lock_match:
+                    lock_var = spin_lock_match.group(1)
+                    current_thread.sync_objects.add(lock_var)
+                    current_thread.in_lock = True
+                    current_thread.current_lock = lock_var
+                
+                spin_unlock_match = spin_unlock_pattern.search(stripped)
+                if spin_unlock_match:
+                    current_thread.in_lock = False
+                    current_thread.current_lock = None
+                
+                # 检测synchronized块
+                synchronized_match = synchronized_pattern.search(stripped)
+                if synchronized_match:
+                    lock_var = synchronized_match.group(1)
+                    current_thread.sync_objects.add(lock_var)
+                    current_thread.in_lock = True
+                    current_thread.current_lock = lock_var
                 
                 # 检测写操作
                 for write_match in write_pattern.finditer(stripped):
