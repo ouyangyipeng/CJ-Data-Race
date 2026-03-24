@@ -124,10 +124,16 @@ CJ-Data-Race/
 | case34_interface_impl | 接口实现竞争 | 0个竞争 | ✅ |
 | case35_dataclass_race | 数据类成员竞争 | 6个竞争 | ✅ |
 
+| case36_exception_handling | 异常处理竞争 | 5个WW竞争 | ✅ |
+| case37_join_sync | join同步测试 | 1个WW竞争 | ✅ |
+| case38_global_singleton | 全局单例模式 | 5个竞争 | ✅ |
+| case39_thread_pool | 线程池模式 | 0个竞争 | ✅ |
+| case40_actor_model | Actor模型 | 0个竞争 | ✅ |
+
 **鲲鹏920环境测试结果** (2026-03-24 更新):
-- 35个测试用例全部通过
+- 40个测试用例全部通过
 - 平均执行时间: ~0.7毫秒/用例
-- 总耗时: 0.025秒 (35个用例)
+- 总耗时: 0.03秒 (40个用例)
 - 内存占用: ~12MB
 - 远低于赛题要求的5分钟限制
 - 测试环境: 192核鲲鹏920、8卡昇腾910B4、1.5T内存
