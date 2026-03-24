@@ -97,11 +97,25 @@ CJ-Data-Race/
 | case7_atomic | Atomic原子操作 | 0个竞争 | ✅ |
 | case8_nested_spawn | 嵌套spawn竞争 | 3个WW竞争 | ✅ |
 | case9_channel | Channel通道通信 | 0个竞争 | ✅ |
+| case10_synchronized | synchronized块保护 | 0个竞争 | ✅ |
+| case11_escaped_var | 逃逸变量竞争 | 1个WW竞争 | ✅ |
+| case12_function_call | 函数调用竞争 | 1个RW竞争 | ✅ |
+| case13_array_access | 数组访问竞争 | 1个RW竞争 | ✅ |
+| case14_class_member | 类成员访问竞争 | 2个RW竞争 | ✅ |
+| case15_conditional | 条件分支竞争 | 1个RW竞争 | ✅ |
+| case16_multi_file | 多文件项目 | 1个WW竞争 | ✅ |
+| case17_loop_race | 循环中的数据竞争 | 1个WW竞争 | ✅ |
+| case18_struct_member | 结构体成员竞争 | 2个RW竞争 | ✅ |
+| case19_reentrant_lock | 可重入锁保护 | 0个竞争 | ✅ |
+| case20_multiple_vars | 多变量竞争 | 5个竞争 | ✅ |
 
-**鲲鹏920环境测试结果** (2026-03-23):
-- 9个测试用例全部通过
-- 平均执行时间: ~0.09秒/用例
+**鲲鹏920环境测试结果** (2026-03-24):
+- 20个测试用例全部通过
+- 平均执行时间: ~0.7毫秒/用例
+- 总耗时: 0.014秒 (20个用例)
+- 内存占用: ~12MB
 - 远低于赛题要求的5分钟限制
+- 测试环境: 192核鲲鹏920、8卡昇腾910B4、1.5T内存
 
 运行测试：
 
