@@ -108,11 +108,26 @@ CJ-Data-Race/
 | case18_struct_member | 结构体成员竞争 | 2个RW竞争 | ✅ |
 | case19_reentrant_lock | 可重入锁保护 | 0个竞争 | ✅ |
 | case20_multiple_vars | 多变量竞争 | 5个竞争 | ✅ |
+| case21_deep_nested | 深层嵌套spawn | 6个WW竞争 | ✅ |
+| case22_mutex_trylock | tryLock保护 | 0个竞争 | ✅ |
+| case23_pointer_dereference | 指针解引用竞争 | 1个RW竞争 | ✅ |
+| case24_future_race | Future相关竞争 | 3个竞争 | ✅ |
+| case25_static_var | 静态变量竞争 | 6个竞争 | ✅ |
+| case26_closure_capture | 闭包捕获变量竞争 | 2个WW竞争 | ✅ |
+| case27_lamda_spawn | lambda表达式spawn | 1个WW竞争 | ✅ |
+| case28_thread_local | 线程局部变量 | 0个竞争 | ✅ |
+| case29_volatile_access | 多重锁保护(不同锁) | 1个WW竞争 | ✅ |
+| case30_rwlock_readwrite | RWLock读写分离 | 0个竞争 | ✅ |
+| case31_wait_notify | 条件变量等待通知 | 0个竞争 | ✅ |
+| case32_producer_consumer | 生产者消费者模式 | 0个竞争 | ✅ |
+| case33_recursive_function | 递归函数竞争 | 1个WW竞争 | ✅ |
+| case34_interface_impl | 接口实现竞争 | 0个竞争 | ✅ |
+| case35_dataclass_race | 数据类成员竞争 | 6个竞争 | ✅ |
 
-**鲲鹏920环境测试结果** (2026-03-24):
-- 20个测试用例全部通过
+**鲲鹏920环境测试结果** (2026-03-24 更新):
+- 35个测试用例全部通过
 - 平均执行时间: ~0.7毫秒/用例
-- 总耗时: 0.014秒 (20个用例)
+- 总耗时: 0.025秒 (35个用例)
 - 内存占用: ~12MB
 - 远低于赛题要求的5分钟限制
 - 测试环境: 192核鲲鹏920、8卡昇腾910B4、1.5T内存

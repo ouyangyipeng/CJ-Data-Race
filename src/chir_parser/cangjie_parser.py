@@ -230,9 +230,13 @@ class CangjieParser:
     def _analyze_spawns(self, lines: List[str]):
         """分析spawn创建的线程"""
         spawn_pattern = re.compile(r'spawn\s*{')
+        # 闭包模式: let closure = { => ... } 或 spawn { => ... }
+        closure_pattern = re.compile(r'(let|var)\s+(\w+)\s*=\s*\{')
+        lambda_spawn_pattern = re.compile(r'spawn\s*\{?\s*=>')
         # Mutex锁操作
         lock_pattern = re.compile(r'(\w+)\.lock\(\)')
         unlock_pattern = re.compile(r'(\w+)\.unlock\(\)')
+        try_lock_pattern = re.compile(r'(\w+)\.tryLock\(\)')
         # RWLock读写锁操作
         read_lock_pattern = re.compile(r'(\w+)\.readLock\(\)')
         read_unlock_pattern = re.compile(r'(\w+)\.readUnlock\(\)')
@@ -270,6 +274,17 @@ class CangjieParser:
         loop_brace_level = 0
         loop_spawn_count = 0  # 循环内spawn计数
         
+        # 闭包追踪
+        closures: Dict[str, List[MemoryAccess]] = {}  # 闭包名 -> 访问列表
+        closure_spawns: List[Tuple[int, str]] = []  # (行号, 闭包名) 用于spawn闭包
+        in_closure = False
+        closure_name = ""
+        closure_accesses: List[MemoryAccess] = []
+        closure_brace_level = 0
+        
+        # 主函数中的变量（用于检测闭包捕获）
+        main_vars: Set[str] = set()
+        
         for line_num, line in enumerate(lines, 1):
             stripped = line.strip()
             
@@ -277,11 +292,70 @@ class CangjieParser:
             if stripped.startswith('//'):
                 continue
             
+            # 收集main函数中的变量
+            if 'main()' in stripped or 'func main()' in stripped:
+                # 主函数开始，收集局部变量
+                for line in lines[line_num:]:  # 向后扫描收集变量
+                    if '{' in line:
+                        break
+            if not in_spawn and not in_closure:
+                # 检测闭包定义
+                closure_match = closure_pattern.search(stripped)
+                if closure_match:
+                    in_closure = True
+                    closure_name = closure_match.group(2)
+                    closure_accesses = []
+                    closure_brace_level = len(brace_stack)
+            
             # 检测循环开始
             if for_loop_pattern.search(stripped) or while_loop_pattern.search(stripped):
                 in_loop = True
                 loop_brace_level = len(brace_stack)
                 loop_spawn_count = 0
+            
+            # 检测lambda spawn: spawn { => ... }
+            if lambda_spawn_pattern.search(stripped):
+                # 检查闭包中访问的变量
+                captured_vars = []
+                for var in main_vars:
+                    if var in stripped:
+                        captured_vars.append(var)
+                # 创建线程并捕获闭包中的访问
+                current_thread = ThreadContext(
+                    spawn_line=line_num,
+                    file_path=self.current_file,
+                    file_name=self.current_file_name
+                )
+                # 将闭包捕获的变量添加为访问
+                for var in captured_vars:
+                    current_thread.accesses.append(MemoryAccess(
+                        variable=Variable(name=var),
+                        access_type=AccessType.WRITE if f"{var} =" in stripped else AccessType.READ,
+                        location=SourceLocation(
+                            file_path=self.current_file,
+                            file_name=self.current_file_name,
+                            line=line_num
+                        )
+                    ))
+                self.threads.append(current_thread)
+                in_spawn = True
+                spawn_brace_level = len(brace_stack)
+                thread_local_vars = set()
+            
+            # 检测spawn闭包: spawn closure_name
+            for existing_closure in closures:
+                if f"spawn {existing_closure}" in stripped:
+                    # 闭包被spawn，创建线程
+                    current_thread = ThreadContext(
+                        spawn_line=line_num,
+                        file_path=self.current_file,
+                        file_name=self.current_file_name
+                    )
+                    current_thread.accesses = closures[existing_closure].copy()
+                    self.threads.append(current_thread)
+                    in_spawn = True
+                    spawn_brace_level = len(brace_stack)
+                    thread_local_vars = set()
             
             # 检测spawn
             if spawn_pattern.search(stripped):
@@ -331,6 +405,48 @@ class CangjieParser:
                         if in_loop and len(brace_stack) == loop_brace_level:
                             in_loop = False
                             loop_spawn_count = 0
+                        # 检测闭包结束
+                        if in_closure and len(brace_stack) == closure_brace_level:
+                            in_closure = False
+                            closures[closure_name] = closure_accesses
+                            closure_name = ""
+                            closure_accesses = []
+            
+            # 在闭包内收集访问
+            if in_closure:
+                # 检测写操作
+                for write_match in write_pattern.finditer(stripped):
+                    var_name = write_match.group(1)
+                    if var_name not in ('let', 'var', 'if', 'else', 'for', 'while', 'return', 'func'):
+                        closure_accesses.append(MemoryAccess(
+                            variable=Variable(name=var_name),
+                            access_type=AccessType.WRITE,
+                            location=SourceLocation(
+                                file_path=self.current_file,
+                                file_name=self.current_file_name,
+                                line=line_num
+                            )
+                        ))
+                        main_vars.add(var_name)  # 记录捕获的变量
+                
+                # 检测读操作
+                for read_match in read_pattern.finditer(stripped):
+                    var_name = read_match.group(1)
+                    if var_name not in ('let', 'var', 'if', 'else', 'for', 'while', 'return', 'func',
+                                       'Int64', 'Int32', 'String', 'Bool', 'Float64', 'Unit'):
+                        already_write = any(a.variable.name == var_name and a.access_type == AccessType.WRITE
+                                          for a in closure_accesses if a.location.line == line_num)
+                        if not already_write:
+                            closure_accesses.append(MemoryAccess(
+                                variable=Variable(name=var_name),
+                                access_type=AccessType.READ,
+                                location=SourceLocation(
+                                    file_path=self.current_file,
+                                    file_name=self.current_file_name,
+                                    line=line_num
+                                )
+                            ))
+                            main_vars.add(var_name)  # 记录捕获的变量
             
             # 在spawn块内分析
             if current_thread and in_spawn:
@@ -357,6 +473,20 @@ class CangjieParser:
                 if unlock_match:
                     current_thread.in_lock = False
                     current_thread.current_lock = None
+                
+                # 检测tryLock操作
+                try_lock_match = try_lock_pattern.search(stripped)
+                if try_lock_match:
+                    lock_var = try_lock_match.group(1)
+                    current_thread.sync_objects.add(lock_var)
+                    current_thread.in_lock = True
+                    current_thread.current_lock = lock_var
+                    # 如果是循环线程，同步到所有循环线程
+                    if hasattr(self, 'loop_threads') and self.loop_threads:
+                        for t in self.loop_threads:
+                            t.sync_objects.add(lock_var)
+                            t.in_lock = True
+                            t.current_lock = lock_var
                 
                 # 检测RWLock读写锁操作
                 read_lock_match = read_lock_pattern.search(stripped)
